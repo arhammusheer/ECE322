@@ -7,7 +7,11 @@
 
 read -p "Do you wish to open the pod bay doors?" inputVar
 
-echo "I'm sorry, Dave. I'm afraid I can't do that."
-echo "That is good. I wouldn't open them anyway."
-
-
+if [ $inputVar = "y" ]
+then
+	echo "I'm sorry, Dave. I'm afraid I can't do that."
+elif [ $inputVar = "n" ]
+then
+	echo "That is good. I wouldn't open them anyway."
+fi
+	
