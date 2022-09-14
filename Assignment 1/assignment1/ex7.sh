@@ -12,10 +12,7 @@
 # >& = redirect standard output and standard error to /dev/null
 # /dev/null = trashcan
 # (    )& = run these commands separately without blocking further commands
-(sleep 0;kill $$ >& /dev/null) &
+(sleep 2;kill $$ >& /dev/null) &
 
 sleep 1
 echo Finished Nap.
-
-
-
