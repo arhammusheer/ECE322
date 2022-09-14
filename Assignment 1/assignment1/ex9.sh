@@ -8,5 +8,5 @@ echo -n Input a number:
 read val
 echo -n Input a second number:
 read val2
-total=
+total=$(($val + $val2)) 
 echo Result is $total.
