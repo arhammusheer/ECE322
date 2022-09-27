@@ -1,4 +1,6 @@
 BEGIN {
+
+	exit
 }
 {
 }

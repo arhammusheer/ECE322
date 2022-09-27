@@ -1,0 +1,8 @@
+awk: cmd. line:4: 			<insert code>
+awk: cmd. line:4: 			^ syntax error
+awk: cmd. line:5: 			<insert code>
+awk: cmd. line:5: 			             ^ unexpected newline or end of string
+awk: cmd. line:8: 			print <insert code> " had " <insert code> " quotes."
+awk: cmd. line:8: 			      ^ syntax error
+awk: cmd. line:8: 			print <insert code> " had " <insert code> " quotes."
+awk: cmd. line:8: 			                            ^ syntax error

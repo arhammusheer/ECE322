@@ -6,11 +6,11 @@
 
 echo Please type in 3 foods you like:
 for xx in `seq 1 3`; do
-	read array
+	read array[$xx]
 done
 
 PS3='Now Select the food you like the best: '
-select option in array
+select option in ${array[@]}
 do
   echo "The option you have selected is: $option"
   break
