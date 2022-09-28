@@ -6,9 +6,7 @@
 # "date +%m_%d_%y" and place it into a variable. (Note no testcase 
 # for this exercise)
 
-date +%m_%d_%y
-
-datecode=
+datecode=`date +%m_%d_%y`
 
 filename="$datecode"_Assignment.txt
 

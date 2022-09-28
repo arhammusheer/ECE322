@@ -2,3 +2,7 @@
 
 # Put your code here
 # You may only use the following external programs: ls, echo, awk, cat, grep, sort, wc, bc
+
+cat input.txt | while read keyword weight; do
+		echo $weight $keyword | sort -n
+done
