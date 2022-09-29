@@ -1,12 +1,5 @@
-BEGIN {
-	{
-		print $1
-	}
-	exit
-}
-{
-}
+
 END {
-	print NR
+	print "Number of Lines in file: " NR
 }
 
