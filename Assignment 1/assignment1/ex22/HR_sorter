@@ -3,6 +3,22 @@
 # Put your code here
 # You may only use the following external programs: ls, echo, awk, cat, grep, sort, wc, bc
 
-cat input.txt | while read keyword weight; do
-		echo $weight $keyword | sort -n
-done
+# List of files in submissions
+IFS=$'\n';
+for file in submissions/*; do
+	# loop through each keyword
+	file_name=$(echo $file | awk -F/ '{print $2}')
+
+	score=0;
+
+	for keyword in $(cat input.txt); do
+		k=$(echo $keyword | awk '{print $1}')
+		w=$(echo $keyword | awk '{print $2}')
+
+		count=$(cat $file | grep -o -i $k | wc -l)
+		score=$(echo "$score + $count * $w" | bc)
+	done
+
+	echo $score $file_name
+
+done | sort -n -r
