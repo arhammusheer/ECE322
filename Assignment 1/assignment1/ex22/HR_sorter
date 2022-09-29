@@ -12,12 +12,30 @@ for file in submissions/*; do
 	score=0;
 
 	for keyword in $(cat input.txt); do
-		k=$(echo $keyword | awk '{print $1}')
-		w=$(echo $keyword | awk '{print $2}')
+		k=$(echo $keyword | awk '{
+			# if $3 exists
+			if ( $3 != "" ) {
+				print $1 " " $2
+			} else {
+				print $1
+			}
+		}')
+		w=$(echo $keyword | awk '{
+			# if $3 exists
+			if ( $3 != "" ) {
+				print $3
+			} else {
+				print $2
+			}
+		}')
 
 		count=$(cat $file | grep -o -i $k | wc -l)
 		score=$(echo "$score + $count * $w" | bc)
 	done
+
+	# remove trailing zeros
+	score=$(echo $score | awk '{print $1*1}')
+	
 
 	echo $score $file_name
 
