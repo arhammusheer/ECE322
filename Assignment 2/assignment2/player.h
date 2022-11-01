@@ -144,6 +144,17 @@ char computer_play(struct player* target);
  */
 char user_play(struct player* target);
 
+
+/*
+  * Function: print_hand
+  * --------------------
+  *   Print the cards in a player's hand
+  *
+  *   target: the player's hand to print
+  */
+
+void print_hand(struct player* target);
+
 #endif
 
 
