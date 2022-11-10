@@ -2,7 +2,7 @@
  * tsh - A tiny shell program with job control
  *
  * Mohammad Arham marham@umass.edu 32912795
- * Samridh Tuteja stuteja@umass.edu --------
+ * Samridh Tuteja stuteja@umass.edu 32590475
  */
 #include <stdio.h>
 #include <stdlib.h>
