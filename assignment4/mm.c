@@ -378,10 +378,67 @@ void* mm_malloc (size_t size) {
     reqSize = ALIGNMENT * ((size + ALIGNMENT - 1) / ALIGNMENT);
   }
 
-  // Implement mm_malloc.  You can change or remove any of the above
-  // code.  It is included as a suggestion of where to start.
-  // You will want to replace this return statement...
-  return NULL; 
+  reqSize+=ALIGNMENT;
+
+  // Search the free list for a block that is big enough.
+  ptrFreeBlock = searchFreeList(reqSize);
+
+  // If we didn't find a free block, get more memory from the system.
+  if (ptrFreeBlock == NULL) {
+    requestMoreSpace(reqSize);
+    ptrFreeBlock = searchFreeList(reqSize);
+    if (ptrFreeBlock == NULL) {
+      // If we still didn't find a free block, return NULL.
+      return NULL;
+    }
+
+    precedingBlockUseTag = TAG_PRECEDING_USED;
+
+  } else {
+    precedingBlockUseTag = ptrFreeBlock->sizeAndTags & TAG_PRECEDING_USED;
+  }
+
+  // We found a free block that is big enough.
+  // Remove it from the free list.
+  removeFreeBlock(ptrFreeBlock);
+
+  // Get the size of the free block we found.
+  blockSize = SIZE(ptrFreeBlock->sizeAndTags);
+
+  // If the free block is big enough to split, do it.
+  if (blockSize - reqSize >= MIN_BLOCK_SIZE) {
+    // Split the block.
+    BlockInfo *newBlock = (BlockInfo *)UNSCALED_POINTER_ADD(ptrFreeBlock, reqSize);
+    newBlock->sizeAndTags = blockSize - reqSize | TAG_PRECEDING_USED;
+    newBlock->next = NULL;
+    newBlock->prev = NULL;
+    // boundary tag
+    *((size_t*)UNSCALED_POINTER_ADD(newBlock, blockSize - reqSize - WORD_SIZE)) = blockSize - reqSize | TAG_PRECEDING_USED;
+
+    // Insert the remainder into the free list.
+    insertFreeBlock(newBlock);
+
+    // Update the size of the block we're returning.
+    blockSize = reqSize;
+
+    // Update the use tag of the block we're returning.
+    ptrFreeBlock->sizeAndTags = blockSize | TAG_USED | precedingBlockUseTag;
+
+    // Update the boundary tag of the block we're returning.
+    *((size_t*)UNSCALED_POINTER_ADD(ptrFreeBlock, blockSize - WORD_SIZE)) = blockSize | TAG_USED | precedingBlockUseTag;
+
+  } else {
+    // The free block wasn't big enough to split, so we'll just use it
+    // all.  Update the use tag of the block we're returning.
+    ptrFreeBlock->sizeAndTags = blockSize | TAG_USED | precedingBlockUseTag;
+
+    // Update the boundary tag of the block we're returning.
+    *((size_t*)UNSCALED_POINTER_ADD(ptrFreeBlock, blockSize - WORD_SIZE)) = blockSize | TAG_USED | precedingBlockUseTag;
+  }
+  
+  // Return a pointer to the usable part of the block.
+  return UNSCALED_POINTER_ADD(ptrFreeBlock, WORD_SIZE);
+
 }
 
 /* Free the block referenced by ptr. */
@@ -390,9 +447,22 @@ void mm_free (void *ptr) {
   BlockInfo * blockInfo;
   BlockInfo * followingBlock;
 
-  // Implement mm_free.  You can change or remove the declaraions
-  // above.  They are included as minor hints.
+  // Get the block info for the block being freed.
+  blockInfo = (BlockInfo *)UNSCALED_POINTER_SUB(ptr, WORD_SIZE);
+  
+  // Get the size of the payload.
+  payloadSize = SIZE(blockInfo->sizeAndTags);
 
+  // Mark the block as free.
+  blockInfo->sizeAndTags &= ~TAG_USED;
+
+  // Mark the following block as free.
+  followingBlock = (BlockInfo *)UNSCALED_POINTER_ADD(blockInfo, payloadSize);
+  followingBlock->sizeAndTags &= ~TAG_PRECEDING_USED;
+
+  // Add the block to the free list and coalesce.
+  insertFreeBlock(blockInfo);
+  coalesceFreeBlock(blockInfo);
 }
 
 
