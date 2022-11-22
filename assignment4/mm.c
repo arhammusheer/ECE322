@@ -409,11 +409,11 @@ void* mm_malloc (size_t size) {
   if (blockSize - reqSize >= MIN_BLOCK_SIZE) {
     // Split the block.
     BlockInfo *newBlock = (BlockInfo *)UNSCALED_POINTER_ADD(ptrFreeBlock, reqSize);
-    newBlock->sizeAndTags = blockSize - reqSize | TAG_PRECEDING_USED;
+    newBlock->sizeAndTags = (blockSize - reqSize) | TAG_PRECEDING_USED;
     newBlock->next = NULL;
     newBlock->prev = NULL;
     // boundary tag
-    *((size_t*)UNSCALED_POINTER_ADD(newBlock, blockSize - reqSize - WORD_SIZE)) = blockSize - reqSize | TAG_PRECEDING_USED;
+    *((size_t*)UNSCALED_POINTER_ADD(newBlock, blockSize - reqSize - WORD_SIZE)) = (blockSize - reqSize) | TAG_PRECEDING_USED;
 
     // Insert the remainder into the free list.
     insertFreeBlock(newBlock);
@@ -427,14 +427,18 @@ void* mm_malloc (size_t size) {
     // Update the boundary tag of the block we're returning.
     *((size_t*)UNSCALED_POINTER_ADD(ptrFreeBlock, blockSize - WORD_SIZE)) = blockSize | TAG_USED | precedingBlockUseTag;
 
-  } else {
-    // The free block wasn't big enough to split, so we'll just use it
-    // all.  Update the use tag of the block we're returning.
-    ptrFreeBlock->sizeAndTags = blockSize | TAG_USED | precedingBlockUseTag;
+    } else {
+      // Boundary tag of the block we're returning.
+      *((size_t*)UNSCALED_POINTER_ADD(ptrFreeBlock, (blockSize-WORD_SIZE)))=blockSize; 
 
-    // Update the boundary tag of the block we're returning.
-    *((size_t*)UNSCALED_POINTER_ADD(ptrFreeBlock, blockSize - WORD_SIZE)) = blockSize | TAG_USED | precedingBlockUseTag;
-  }
+      // Update the use tag of the block we're returning.
+      BlockInfo* nextBlock = (BlockInfo*)UNSCALED_POINTER_ADD(ptrFreeBlock, blockSize); // next block
+
+      ptrFreeBlock->sizeAndTags = blockSize | TAG_USED | precedingBlockUseTag;
+
+      // Update the use tag of the next block.
+      nextBlock->sizeAndTags = nextBlock->sizeAndTags | TAG_PRECEDING_USED;
+    }
   
   // Return a pointer to the usable part of the block.
   return UNSCALED_POINTER_ADD(ptrFreeBlock, WORD_SIZE);
@@ -472,7 +476,138 @@ int mm_check() {
 }
 
 // Extra credit.
+
+// The realloc() function changes the size of the memory block pointed to by
+// ptr to size bytes.  The contents will be unchanged in the range from the
+// start of the region up to the minimum of the old and new sizes.  If the
+// new size is larger than the old size, the added memory will not be
+// initialized.  If ptr is NULL, then the call is equivalent to
+// malloc(size), for all values of size; if size is equal to zero, and ptr
+// is not NULL, then the call is equivalent to free(ptr).  Unless ptr is
+// NULL, it must have been returned by an earlier call to malloc(), calloc()
+// or realloc().  If the area pointed to was moved, a free(ptr) is done.
 void* mm_realloc(void* ptr, size_t size) {
-  // ... implementation here ...
+  // Check if the pointer is NULL.
+  if (ptr == NULL) {
+    return mm_malloc(size);
+  }
+
+  // Check if the size is 0.
+  if (size == 0) {
+    mm_free(ptr);
+    return NULL;
+  }
+
+  // Get the block info for the block being reallocated.
+  BlockInfo * blockInfo = (BlockInfo *)UNSCALED_POINTER_SUB(ptr, WORD_SIZE);
+
+  // Get the size of the payload.
+  size_t payloadSize = SIZE(blockInfo->sizeAndTags);
+
+  // Check if the size is the same.
+  if (size == payloadSize) {
+    return ptr;
+  }
+
+  // Check if the size is smaller.
+  if (size < payloadSize) {
+    // Check if the block can be split.
+    if (payloadSize - size >= MIN_BLOCK_SIZE) {
+      // Split the block.
+      BlockInfo *newBlock = (BlockInfo *)UNSCALED_POINTER_ADD(blockInfo, size);
+      newBlock->sizeAndTags = (payloadSize - size) | TAG_PRECEDING_USED;
+      newBlock->next = NULL;
+      newBlock->prev = NULL;
+      // boundary tag
+      *((size_t*)UNSCALED_POINTER_ADD(newBlock, payloadSize - size - WORD_SIZE)) = (payloadSize - size) | TAG_PRECEDING_USED;
+
+      // Insert the remainder into the free list.
+      insertFreeBlock(newBlock);
+
+      // Update the size of the block we're returning.
+      payloadSize = size;
+
+      // Update the use tag of the block we're returning.
+      blockInfo->sizeAndTags = payloadSize | TAG_USED;
+
+      // Update the boundary tag of the block we're returning.
+      *((size_t*)UNSCALED_POINTER_ADD(blockInfo, payloadSize - WORD_SIZE)) = payloadSize | TAG_USED;
+
+      // Return a pointer to the usable part of the block.
+      return UNSCALED_POINTER_ADD(blockInfo, WORD_SIZE);
+    } else {
+      return ptr;
+    }
+  }
+
+  // Check if the size is bigger.
+  if (size > payloadSize) {
+    // Get the following block.
+    BlockInfo * followingBlock = (BlockInfo *)UNSCALED_POINTER_ADD(blockInfo, payloadSize);
+
+    // Check if the following block is free.
+    if (payloadSize + SIZE(followingBlock->sizeAndTags) + WORD_SIZE >= size && followingBlock->sizeAndTags && TAG_USED == 0) {
+      // Remove the following block from the free list.
+      removeFreeBlock(followingBlock);
+
+      // Get the size of the following block.
+      size_t followingBlockSize = SIZE(followingBlock->sizeAndTags);
+
+      // Check if the block can be split.
+      if (payloadSize + followingBlockSize - size >= MIN_BLOCK_SIZE) {
+        // Split the block.
+        BlockInfo *newBlock = (BlockInfo *)UNSCALED_POINTER_ADD(blockInfo, size);
+        newBlock->sizeAndTags = (payloadSize + followingBlockSize - size) | TAG_PRECEDING_USED;
+        newBlock->next = NULL;
+        newBlock->prev = NULL;
+        // boundary tag
+        *((size_t*)UNSCALED_POINTER_ADD(newBlock, payloadSize + followingBlockSize - size - WORD_SIZE)) = (payloadSize + followingBlockSize - size) | TAG_PRECEDING_USED;
+
+        // Insert the remainder into the free list.
+        insertFreeBlock(newBlock);
+
+        // Update the size of the block we're returning.
+        payloadSize = size;
+
+        // Update the use tag of the block we're returning.
+        blockInfo->sizeAndTags = payloadSize | TAG_USED;
+
+        // Update the boundary tag of the block we're returning.
+        *((size_t*)UNSCALED_POINTER_ADD(blockInfo, payloadSize - WORD_SIZE)) = payloadSize | TAG_USED;
+
+        // Return a pointer to the usable part of the block.
+        return UNSCALED_POINTER_ADD(blockInfo, WORD_SIZE);
+      } else {
+        // Update the size of the block we're returning.
+        payloadSize += followingBlockSize;
+
+        // Update the use tag of the block we're returning.
+        blockInfo->sizeAndTags = payloadSize | TAG_USED;
+
+        // Update the boundary tag of the block we're returning.
+        *((size_t*)UNSCALED_POINTER_ADD(blockInfo, payloadSize - WORD_SIZE)) = payloadSize | TAG_USED;
+
+        // Return a pointer to the usable part of the block.
+        return UNSCALED_POINTER_ADD(blockInfo, WORD_SIZE);
+      }
+    } else {
+      // Allocate a new block.
+      void * newPtr = mm_malloc(size);
+
+      // Copy the data using WORD_SIZE
+      size_t i;
+      for (i = 0; i < payloadSize; i += WORD_SIZE) {
+        *((size_t*)UNSCALED_POINTER_ADD(newPtr, i)) = *((size_t*)UNSCALED_POINTER_ADD(ptr, i));
+      }
+
+      // Free the old block.
+      mm_free(ptr);
+
+      // Return the new block.
+      return newPtr;
+
+    }
+  }
+
   return NULL;
 }
